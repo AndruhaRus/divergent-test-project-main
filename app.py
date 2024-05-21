@@ -29,7 +29,7 @@ def get_posts():
             id: <int>,
             title: <str>,
             body: <str>, 
-            author:	<str>,
+            author: <str>,
             created_at: <str>,
             comments_count: <int>
         }
@@ -38,7 +38,13 @@ def get_posts():
 
     Порядок ключей словаря в ответе не важен
     """
-    posts, comments = data_loader()
+    try:
+        posts, comments = data_loader()
+    except FileNotFoundError:
+        abort(500, description="Data files not found.")
+    except json.JSONDecodeError:
+        abort(500, description="Error decoding JSON data.")
+
     output_posts = []
     for post in posts['posts']:
         comments_count = sum(1 for comment in comments['comments'] if comment['post_id'] == post['id'])
@@ -66,12 +72,11 @@ def get_post(post_id):
 
     Отдавайте ошибку abort(404), если пост не существует.
 
-
     Формат ответа:
     id: <int>,
     title: <str>,
     body: <str>, 
-    author:	<str>,
+    author: <str>,
     created_at: <str>
     comments: [
         "user": <str>,
@@ -82,10 +87,16 @@ def get_post(post_id):
 
     Порядок ключей словаря в ответе не важен
     """
-    posts, comments = data_loader()
+    try:
+        posts, comments = data_loader()
+    except FileNotFoundError:
+        abort(500, description="Data files not found.")
+    except json.JSONDecodeError:
+        abort(500, description="Error decoding JSON data.")
+
     post = next((p for p in posts['posts'] if p['id'] == post_id), None)
     if not post:
-        abort(404)
+        abort(404, description="Post not found.")
     
     post_comments = [comment for comment in comments['comments'] if comment['post_id'] == post_id]
 
@@ -97,6 +108,15 @@ def get_post(post_id):
         'created_at': post['created_at'],
         'comments': post_comments
     })
+
+
+@app.errorhandler(404)
+def resource_not_found(e):
+    return jsonify(error=str(e)), 404
+
+@app.errorhandler(500)
+def internal_error(e):
+    return jsonify(error=str(e)), 500
 
 
 if __name__ == '__main__':
